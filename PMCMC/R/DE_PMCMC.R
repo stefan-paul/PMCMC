@@ -77,7 +77,9 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
   counter <- 1
   counterZ <- 0
   
-  
+  failed = FALSE
+  currentlP <- NA # current log posterior
+  weights <- matrix(NA, nrow = length(observations), ncol = numParticles)
   
   
   if(parallel){
@@ -221,7 +223,7 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
             }
             
             #### Resample particles based on weights
-            indX <- sample(x = 1:numParticles,size = numParticles, prob = weights[i,], replace = TRUE)
+            indX <- sample(x = 1:numParticles,size = numParticles, prob = weights[obs,], replace = TRUE)
             
             particles <- particles[indX,]
             

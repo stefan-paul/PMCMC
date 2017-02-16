@@ -184,7 +184,7 @@ PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numPart
   
   if(parallel) parallel::stopCluster(cl)
   
-  return(chain)
+  return(coda::mcmc(chain))
   
 }
 

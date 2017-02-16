@@ -21,7 +21,7 @@
 #' @export
 
 
-DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numParticles,
+DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues = NULL, numParticles,
                      observations, names = NULL, reportIntervall = 10,
                      parallel = FALSE, parallelOptions = list(packages = NULL, objects = NULL),
                      pSnooker = 0.1, 
@@ -35,17 +35,24 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
                      zUpdateFrequency = 10)
 {  
   
-  parLen = length(prior$sampler(1))
-  X = prior$sampler(3)
-  Zold = prior$sampler(parLen * 10)
+  # Get number of parameters in setup
+  Npar = length(prior$sampler(1))
+  Npar12 <- (Npar - 1)/2 # factor for Metropolis ratio DE Snooker update
   
+  
+  # Initialize X ans Z
+  if(is.null(startValues)){
+  X = prior$sampler(3)
+  Zold = prior$sampler(Npar * 10)
+  }else{
+    X <- startValues$X
+    Zold <- strtValues$Z
+  }
 
   if (! is.matrix(X)) stop("wrong starting values")
   if (! is.matrix(Zold)) stop("wrong Z values")
   
-  
-  Npar <- ncol(X)
-  Npar12 <- (Npar - 1)/2 # factor for Metropolis ratio DE Snooker update
+
   
   # M0 is initial population size of Z is the size of Z, it's the same number, only kept 2 to stay consistent with the ter Brakk & Vrugt 2008 
   M = M0 = nrow(Zold)
@@ -55,33 +62,35 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
   F1 = 1.0
   rr = NULL
   r_extra = 0
-  
   burnin = 0
-  
   n.iter <- ceiling(iterations/Npop)
-  
   lChain <- ceiling((n.iter - burnin)/thin)+1
-  
-  chain <- array(NA, dim=c(lChain, Npar+3, Npop))
-  
-  if(is.null(names)) names <- 1:Npar
-  
-  colnames(chain) <- c(names, "LP", "LL", "LPr")
 
   
+  ## Initialize chain
+  chain <- array(NA, dim=c(lChain, Npar+3, Npop))
+  # set parameter names
+  if(is.null(names)) names <- 1:Npar
+  colnames(chain) <- c(names, "LP", "LL", "LPr")
+
+  # Initialize Z matrix (= history of chain) and add first values
   Z <- matrix(NA, nrow= M0 + floor((n.iter-1) /zUpdateFrequency) * Npop, ncol=Npar)
-  
   Z[1:M,] <- Zold
   
-  
+  # initialize counter
   counter <- 1
   counterZ <- 0
   
-  failed = FALSE
+  failed = FALSE # if all particles fail (ll = -Inf) this flag is set to TRUE to
+      # avoid errors in the resampling of the particles
+  
   currentlP <- NA # current log posterior
+  
+  # Initialize vector for weights
   weights <- matrix(NA, nrow = length(observations), ncol = numParticles)
   
   
+  ## Set up parallel framework
   if(parallel){
     ## set up parallel executer 
     cl <- parallel::makeCluster(parallel)
@@ -91,19 +100,15 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
   }
   
 
-  
+  #### Evaluation of first parameter set ####
 
   for(pop in 1:Npop){
-    
     currentPar <- X[pop,]
     
   # Initialize start particles
   particles <-f0(numParticles)
-
   
-  #### Evaluation of first parameter set ####
   for(i in 1:length(observations)){
-    
     
     if(parallel){
       
@@ -117,8 +122,6 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
       }
     }
     
-    
-    
     weights[i,] <- likelihood(predicted = particles,
                               observed = referenceData[i,], currentPar = currentPar) # calculate weights for all
     # particles based on actual observations
@@ -129,13 +132,11 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
     
     particles <- particles[indX,]
     
-    
   } # observations
   
   currentll <- calculateApproxLikelihood(weights) # get approximate ll values
   currentPrior <- prior$density(currentPar)
   currentlP <- currentll +  currentPrior# get posterior values
-  
   
   chain[1,,pop] <- c(currentPar, currentlP, currentll, currentPrior) # write first values in chain
   
@@ -151,7 +152,6 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
     
     f <- ifelse(iter%%10 == 0, 0.98, F1)
     #accept <- 0
-    
       
       for (i in 1:Npop){
         # select to random different individuals (and different from i) in rr, a 2-vector
@@ -260,9 +260,6 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
           
       } # for Npop
       
-
-    
-    
     if (iter%%zUpdateFrequency == 0) { # update history
       
       Z[( M0 + (counterZ*Npop) + 1 ):( M0 + (counterZ+1)*Npop),] <- X
@@ -279,13 +276,14 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numP
     
   } # n.iter
   
+  #### End iterations ####
   
+  # Make sure only full lines are exported
   chain <- chain[1:counter,,]
   
-  
+  # Change chain to coda::mcmc.list
   chain<- coda::as.mcmc.list(lapply(1:Npop,function(i) coda::as.mcmc(chain[,1:(Npar+3),i])))
   
-  
-  
-  list(chain = chain,  X = as.matrix(X[,1:Npar]), Z = Z)
+  # Return values
+  return(list(chain = chain,  X = as.matrix(X[,1:Npar]), Z = Z))
 }

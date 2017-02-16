@@ -1,13 +1,13 @@
 
 #' Differential-Evolution MCMC zs with a particle filter to approximate the likelihood
-#' @param prior a prior created by createPrior
+#' @param prior a prior created by \code{\link{BayesianTools::createPrior}}
 #' @param iterations iterations to run
 #' @param pSnooker probability of Snooker update
 #' @param burnin number of iterations treated as burn-in. These iterations are not recorded in the chain.
 #' @param thin thinning parameter. Determines the interval in which values are recorded.
 #' @param eps small number to avoid singularity
 #' @param f scaling factor gamma
-#' @param parallel logical, determines weather parallel computing should be attempted (see details)
+#' @param parallel either FALSE or number of nodes used in parallel processing
 #' @param pGamma1 probability determining the frequency with which the scaling is set to 1 (allows jumps between modes)
 #' @param eps.mult random term (multiplicative error)
 #' @param eps.add random term

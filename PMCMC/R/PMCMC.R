@@ -12,7 +12,7 @@
 #' a function can be provided to sample the start values.
 #' @param observations vactor containing the data (e.g. PAR) to run the model.
 #' @param names parameter names (otional)
-#' @param parallel number of nodes to be used
+#' @param parallel either FALSE number of nodes to be used in parallel processing
 #' @param parallelOptions list with packages and objects to be exported to cluster
 #' @export
 #' @details The likelihood calculates the weigth for one set of particles. \cr\cr

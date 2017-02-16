@@ -73,9 +73,15 @@ PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numPart
     }
     
     
-    weights[i,] <- likelihood(predicted = particles[,1],
-                              observed = referenceData[i,1], error = currentPar[7]) # calculate weights for all
-    # particles based on actual observations
+    # weights[i,] <- likelihood(predicted = particles[,1],
+    #                           observed = referenceData[i,1], error = currentPar[7]) # calculate weights for all
+    # 
+    
+    weights[i,] <- likelihood(predicted = particles,
+                              observed = referenceData[i,], currentPar = currentPar) # calculate weights for all
+    
+    
+     # particles based on actual observations
     if(all(weights[i,] == 0)) stop("Please provide better starting values")
     
     #### Resample particles based on weights
@@ -122,9 +128,12 @@ PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numPart
          }
         }
           
-        weights[i,] <- likelihood(predicted = particles[,1],
-                                  observed = referenceData[i,1], error = currentPar[7]) # calculate weights for all
-        # particles based on actual observations
+        # weights[i,] <- likelihood(predicted = particles[,1],
+        #                           observed = referenceData[i,1], error = currentPar[7]) # calculate weights for all
+        # # particles based on actual observations
+        # 
+        weights[i,] <- likelihood(predicted = particles,
+                                  observed = referenceData[i,], currentPar = currentPar) # calculate weights for all
         
         
         if(all(weights[i,] ==0)){

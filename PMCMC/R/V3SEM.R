@@ -85,7 +85,8 @@ V3SEM <- function(pars =  c(KEXT = 0.5,
                            Av = 0.5,
                            Cv = 3,
                            Cs = 15,
-                           Cr = 3),
+                           Cr = 3,
+                           errorSD = 0.01),
                  PAR, C = TRUE){
 
   if (C == T){

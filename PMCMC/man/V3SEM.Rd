@@ -5,8 +5,8 @@
 \title{Very simple ecosystem model}
 \usage{
 V3SEM(pars = c(KEXT = 0.5, LAR = 1.5, LUE = 0.002, GAMMA = 0.4, tauV = 1440,
-  tauS = 27370, tauR = 1440, Av = 0.5, Cv = 3, Cs = 15, Cr = 3), PAR,
-  C = TRUE)
+  tauS = 27370, tauR = 1440, Av = 0.5, Cv = 3, Cs = 15, Cr = 3, errorSD = 0.01),
+  PAR, C = TRUE)
 }
 \arguments{
 \item{pars}{a parameter vector}

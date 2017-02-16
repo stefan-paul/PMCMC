@@ -35,6 +35,7 @@ NumericMatrix v3semC(NumericVector par, NumericVector PAR){
   double G;
   double NEE;
   double NPP;
+  double errorSD = par[11];
 
   
 
@@ -43,8 +44,7 @@ NumericMatrix v3semC(NumericVector par, NumericVector PAR){
   std::mt19937 generator;
   generator.seed( time(NULL) );
   double mean = 0.0;
-  double stddev  = 0.1;
-  std::normal_distribution<double> normal(mean, stddev);
+  std::normal_distribution<double> normal(mean, errorSD);
 
   
   NumericMatrix out(numObs, 4);

@@ -5,8 +5,9 @@
 \title{Function to run the particle MCMC}
 \usage{
 PMCMC(iterations, model, likelihood, prior, f0, startValues, numParticles,
-  scaling = NULL, observations, names = NULL, reportIntervall = 10,
-  parallel = 2, parallelOptions = list(packages = NULL, objects = NULL))
+  scaling = NULL, data, names = NULL, reportIntervall = 10,
+  referenceData = NULL, parallel = 2, parallelOptions = list(packages =
+  NULL, objects = NULL))
 }
 \arguments{
 \item{iterations}{number of iterations to run}
@@ -27,11 +28,13 @@ a function can be provided to sample the start values.}
 \item{scaling}{scaling factor for the proposal. If not provided 1/10 of the
 prior with is used.}
 
-\item{observations}{vactor containing the data (e.g. PAR) to run the model.}
+\item{data}{vactor containing the data (e.g. PAR) to run the model.}
 
 \item{names}{parameter names (otional)}
 
-\item{parallel}{number of nodes to be used}
+\item{referenceData}{matrix containing the reference data to compute the likelihood}
+
+\item{parallel}{either FALSE number of nodes to be used in parallel processing}
 
 \item{parallelOptions}{list with packages and objects to be exported to cluster}
 }

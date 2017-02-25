@@ -10,7 +10,8 @@
 #' @param f0 function that generates a set of particles for start conditions (see details)
 #' @param startValues vector containing the parameter start values. Alternatively
 #' a function can be provided to sample the start values.
-#' @param observations vactor containing the data (e.g. PAR) to run the model.
+#' @param data vactor containing the data (e.g. PAR) to run the model.
+#' @param referenceData matrix containing the reference data to compute the likelihood
 #' @param names parameter names (otional)
 #' @param parallel either FALSE number of nodes to be used in parallel processing
 #' @param parallelOptions list with packages and objects to be exported to cluster
@@ -20,13 +21,13 @@
 
 
 PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numParticles,
-                  scaling = NULL, observations, names = NULL, reportIntervall = 10,
+                  scaling = NULL, data, names = NULL, reportIntervall = 10,referenceData = NULL,
                   parallel = 2, parallelOptions = list(packages = NULL, objects = NULL)){
   
   #### Initializations ###########
   failed = FALSE
   currentlP <- NA # current log posterior
-  weights <- matrix(NA, nrow = length(observations), ncol = numParticles)
+  weights <- matrix(NA, nrow = length(data), ncol = numParticles)
   
   if(is.numeric(startValues)){
     currentPar <- startValues # current parameter set
@@ -57,18 +58,18 @@ PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numPart
   
   
   #### Evaluation of first parameter set ####
-  for(i in 1:length(observations)){
+  for(i in 1:length(data)){
     
     
     if(parallel){
       
       particles <- matrix(parallel::parRapply(cl, x = particles, FUN = model, 
-                                              data = observations[i], parameters = currentPar),
+                                              data = data[i], parameters = currentPar),
                           nrow = numParticles, byrow = TRUE)
       
     }else{
      for(k in 1:numParticles){
-       particles[k,] <- model(data = observations[i], parameters = currentPar, particles = particles[k,]) # update states
+       particles[k,] <- model(data = data[i], parameters = currentPar, particles = particles[k,]) # update states
      }
     }
     
@@ -81,16 +82,16 @@ PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numPart
                               observed = referenceData[i,], currentPar = currentPar) # calculate weights for all
     
     
-     # particles based on actual observations
+     # particles based on actual data
     if(all(weights[i,] == 0)) stop("Please provide better starting values")
     
     #### Resample particles based on weights
-    indX <- sample(x = 1:numParticles,size = numParticles, prob = weights[i,], replace = TRUE)
+    indX <- sample(x = 1:numParticles,size = numParticles, prob = normalize(weights[i,]), replace = TRUE)
     
     particles <- particles[indX,]
     
     
-  } # observations
+  } # data
   
   currentll <- calculateApproxLikelihood(weights) # get approximate ll values
   currentPrior <- prior(currentPar)
@@ -106,31 +107,31 @@ PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numPart
     
     
     #### Make new proposal
-    currentPar <- proposalFunction(chain[iter-1,1:(ncol(chain)-3)], scaling = scaling)
+    currentPar <- proposalFunction(chain[(iter-1),1:(ncol(chain)-3)], scaling = scaling)
     newPrior <- prior(currentPar)
     
     if(newPrior == -Inf){
       chain[iter, ] <- chain[(iter-1), ]
     }else{
       
-      for(i in 1:length(observations)){
+      for(i in 1:length(data)){
         
         
         if(parallel){
         particles <- matrix(parallel::parRapply(cl, x = particles, FUN = model, 
-                                                data = observations[i], parameters = currentPar),
+                                                data = data[i], parameters = currentPar),
                             nrow = numParticles, byrow = TRUE)
         
         }else{
         
          for(k in 1:numParticles){
-           particles[k,] <- model(data = observations[i], parameters = currentPar, particles = particles[k,]) # update states
+           particles[k,] <- model(data = data[i], parameters = currentPar, particles = particles[k,]) # update states
          }
         }
           
         # weights[i,] <- likelihood(predicted = particles[,1],
         #                           observed = referenceData[i,1], error = currentPar[7]) # calculate weights for all
-        # # particles based on actual observations
+        # # particles based on actual data
         # 
         weights[i,] <- likelihood(predicted = particles,
                                   observed = referenceData[i,], currentPar = currentPar) # calculate weights for all
@@ -142,11 +143,11 @@ PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numPart
         }
         
         #### Resample particles based on weights
-        indX <- sample(x = 1:numParticles,size = numParticles, prob = weights[i,], replace = TRUE)
+        indX <- sample(x = 1:numParticles,size = numParticles, prob = normalize(weights[i,]), replace = TRUE)
         
         particles <- particles[indX,]
         
-      } # observations
+      } # data
       
       
       if(failed == TRUE) {
@@ -162,7 +163,7 @@ PMCMC <- function(iterations, model, likelihood, prior, f0, startValues, numPart
       }else{
         #### Acceptance
         
-        a <- min(1, newlP / currentlP)
+        a <- min(1, (newlP/currentlP))
         
         if(a > runif(1)){ # accept and write old values in chain
           currentlP <- newlP
@@ -211,8 +212,9 @@ calculateApproxLikelihood <- function(weights){
     w_hat[i] <- 1/np * sum(weights[i,])
   }
   
-  margLL <- sum(log(w_hat))
-  return(margLL)
+  margLL <- sum(w_hat)
+  
+    return(margLL)
 }
 
 #' Function to generate proposal
@@ -220,6 +222,7 @@ calculateApproxLikelihood <- function(weights){
 #' @param scaling scaling factor for each parameter
 #'
 #' @return vactor with new proposal
+#' @export
 
 proposalFunction <- function(parameter, scaling){
   
@@ -229,10 +232,21 @@ proposalFunction <- function(parameter, scaling){
 
 
 #' Function to export packages to cluster
+#' @export
 packageFun <- function(packages = NULLL) {
   if(!is.null(packages)){
     for(i in packages) library(i, character.only = TRUE)
   }
 }
 
+
+
+#' Funtion to normalize weights for resampling
+#' @export
+
+normalize <- function(x){
+  
+  if(max(x) == min(x)) return(rep(1, length(x)))
+  return((x-min(x))/(max(x)-min(x)))
+} 
 

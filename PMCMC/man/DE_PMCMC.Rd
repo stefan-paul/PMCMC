@@ -4,24 +4,31 @@
 \alias{DE_PMCMC}
 \title{Differential-Evolution MCMC zs with a particle filter to approximate the likelihood}
 \usage{
-DE_PMCMC(iterations, model, likelihood, prior, f0, startValues, numParticles,
-  observations, names = NULL, reportIntervall = 10, parallel = FALSE,
-  parallelOptions = list(packages = NULL, objects = NULL), pSnooker = 0.1,
-  burnin = 0, thin = 1, f = 2.38, eps = 0, pGamma1 = 0.1,
-  eps.mult = 0.2, eps.add = 0, zUpdateFrequency = 10)
+DE_PMCMC(iterations, model, likelihood, prior, f0, startValues = NULL,
+  numParticles, data, names = NULL, reportIntervall = 10,
+  referenceData = NULL, parallel = FALSE, parallelOptions = list(packages
+  = NULL, objects = NULL), pSnooker = 0.1, burnin = 0, thin = 1,
+  f = 2.38, eps = 0, pGamma1 = 0.1, eps.mult = 0.2, eps.add = 0,
+  zUpdateFrequency = 10)
 }
 \arguments{
 \item{iterations}{iterations to run}
 
-\item{prior}{a prior created by createPrior}
+\item{model}{model to make predictions about the state}
 
-\item{numParticles}{number of particles}
+\item{likelihood}{likelihood function (see details)}
 
-\item{observations}{vector with data}
+\item{prior}{a prior created by \code{\link{BayesianTools::createPrior}}}
+
+\item{numParticles}{number of particles in the particle filter}
+
+\item{data}{vector with data}
 
 \item{reportIntervall}{intervall in which the sampler's progress is printed}
 
-\item{parallel}{logical, determines weather parallel computing should be attempted (see details)}
+\item{referenceData}{matrix with reference data to compute the likelihood}
+
+\item{parallel}{either FALSE or number of nodes used in parallel processing}
 
 \item{parallelOptions}{list with packages and objects to be exported to the cluster}
 
@@ -42,6 +49,8 @@ DE_PMCMC(iterations, model, likelihood, prior, f0, startValues, numParticles,
 \item{eps.add}{random term}
 
 \item{zUpdateFrequency}{frequency with which the Z matrix is updated (= history of the chain)}
+
+\item{numParticles}{number of particles}
 
 \item{parallel}{either FALSE or number of nodes to be used in parallel processing}
 }

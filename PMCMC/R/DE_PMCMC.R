@@ -1,6 +1,9 @@
 
 #' Differential-Evolution MCMC zs with a particle filter to approximate the likelihood
 #' @param prior a prior created by \code{\link{BayesianTools::createPrior}}
+#' @param numParticles number of particles in the particle filter
+#' @param model model to make predictions about the state
+#' @param likelihood likelihood function (see details)
 #' @param iterations iterations to run
 #' @param pSnooker probability of Snooker update
 #' @param burnin number of iterations treated as burn-in. These iterations are not recorded in the chain.
@@ -12,7 +15,8 @@
 #' @param eps.mult random term (multiplicative error)
 #' @param eps.add random term
 #' @param numParticles number of particles 
-#' @param observations vector with data
+#' @param data vector with data
+#' @param referenceData matrix with reference data to compute the likelihood
 #' @param reportIntervall intervall in which the sampler's progress is printed 
 #' @param parallel either FALSE or number of nodes to be used in parallel processing
 #' @param parallelOptions list with packages and objects to be exported to the cluster
@@ -22,7 +26,7 @@
 
 
 DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues = NULL, numParticles,
-                     observations, names = NULL, reportIntervall = 10,
+                     data, names = NULL, reportIntervall = 10, referenceData = NULL,
                      parallel = FALSE, parallelOptions = list(packages = NULL, objects = NULL),
                      pSnooker = 0.1, 
                      burnin = 0, 
@@ -87,7 +91,7 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues = NUL
   currentlP <- NA # current log posterior
   
   # Initialize vector for weights
-  weights <- matrix(NA, nrow = length(observations), ncol = numParticles)
+  weights <- matrix(NA, nrow = length(data), ncol = numParticles)
   
   
   ## Set up parallel framework
@@ -108,31 +112,31 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues = NUL
   # Initialize start particles
   particles <-f0(numParticles)
   
-  for(i in 1:length(observations)){
+  for(i in 1:length(data)){
     
     if(parallel){
       
       particles <- matrix(parallel::parRapply(cl, x = particles, FUN = model, 
-                                              data = observations[i], parameters = currentPar),
+                                              data = data[i], parameters = currentPar),
                           nrow = numParticles, byrow = TRUE)
       
     }else{
       for(k in 1:numParticles){
-        particles[k,] <- model(data = observations[i], parameters = currentPar, particles = particles[k,]) # update states
+        particles[k,] <- model(data = data[i], parameters = currentPar, particles = particles[k,]) # update states
       }
     }
     
     weights[i,] <- likelihood(predicted = particles,
                               observed = referenceData[i,], currentPar = currentPar) # calculate weights for all
-    # particles based on actual observations
+    # particles based on actual data
     if(all(weights[i,] == 0)) stop("Please provide better starting values")
     
     #### Resample particles based on weights
-    indX <- sample(x = 1:numParticles,size = numParticles, prob = weights[i,], replace = TRUE)
+    indX <- sample(x = 1:numParticles,size = numParticles, prob = normalize(weights[i,]), replace = TRUE)
     
     particles <- particles[indX,]
     
-  } # observations
+  } # data
   
   currentll <- calculateApproxLikelihood(weights) # get approximate ll values
   currentPrior <- prior$density(currentPar)
@@ -198,24 +202,24 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues = NUL
           chain[iter, ,] <- chain[(iter-1), ,]
         }else{
           
-          for(obs in 1:length(observations)){
+          for(obs in 1:length(data)){
             
             
             if(parallel){
               particles <- matrix(parallel::parRapply(cl, x = particles, FUN = model, 
-                                                      data = observations[obs], parameters = currentPar),
+                                                      data = data[obs], parameters = currentPar),
                                   nrow = numParticles, byrow = TRUE)
               
             }else{
               
               for(k in 1:numParticles){
-                particles[k,] <- model(data = observations[obs], parameters = currentPar, particles = particles[k,]) # update states
+                particles[k,] <- model(data = data[obs], parameters = currentPar, particles = particles[k,]) # update states
               }
             }
             
-            weights[i,] <- likelihood(predicted = particles,
-                                      observed = referenceData[i,], currentPar = currentPar) # calculate weights for all
-            # particles based on actual observations
+            weights[obs,] <- likelihood(predicted = particles,
+                                      observed = referenceData[obs,], currentPar = currentPar) # calculate weights for all
+            # particles based on actual data
             
             
             if(all(weights[obs,] ==0)){
@@ -224,11 +228,11 @@ DE_PMCMC <- function(iterations, model, likelihood, prior, f0, startValues = NUL
             }
             
             #### Resample particles based on weights
-            indX <- sample(x = 1:numParticles,size = numParticles, prob = weights[obs,], replace = TRUE)
+            indX <- sample(x = 1:numParticles,size = numParticles, prob = normalize(weights[obs,]), replace = TRUE)
             
             particles <- particles[indX,]
             
-          } # observations
+          } # data
           
           
           if(failed == TRUE) {
